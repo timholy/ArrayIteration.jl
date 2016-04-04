@@ -3,7 +3,23 @@ inds(A)                  # tuple-of-inds
 zeros(Int, -3:3, -1:5)   # creates matrix of size 7-by-7 with the given inds
 fill(val, indexes...)    # likewise
 
-A[first+1:(last+first)÷2]          # copy (or view) of the first half of array, skipping the first element
+a[first+1:(last+first)÷2]          # copy (or view) of the first half of array, skipping the first element
+
+# `index` and `stored` return "indexing hints," the laziest of wrappers
+index(A, :, j)          # lazy-wrapper indicating that one wants indexes associated with column j of A
+stored(A, :, j)         # just the stored values of A in column j
+index(stored(A, :, j))  # just the row-indexes of the stored values in column j
+index(A, :, ?)          # row-index iterator for an arbitrary (unknown) column of A
+index(A, Dimension{2})  # similar to index(A, ?, :, ?...)
+
+# Likely: (notice this is different from sub, because this keeps original indexes)
+index(A, first+1:last)  # would iterate over 2:length(A) for a typical Array
+index(A, first+1:last, j)  # like above, but just over indexes for dimension 1
+
+couple(iter1, iter2)    # iterates over iter1, iter2 containers, keeping them in sync
+# Do we want/need this? I suspect not (default would be `any`)
+couple(any, stored(iter1), stored(iter2))  # visits i if either iter1[i] or iter2[i] has a value
+couple(all, stored(iter1), stored(iter2))  # visits i if both iter1[i] and iter2[i] have values
 
 icat(a, b)  # index-preserving concatenation
 # For example:
@@ -12,16 +28,3 @@ icat(a, b)  # index-preserving concatenation
 #    icat(5:7, 2:4) is an error, because they have overlapping indexes 1:3
 #    icat(5:7, OffsetArray(2:4, 4:6))  indexed from 1:6
 #    icat(5:7, OffsetArray(2:4, 5:7))  an error, non-contiguous indexes
-
-# `index` and `stored` return "indexing hints," the laziest of wrappers
-index(A, :, j)          # lazy-wrapper indicating that one wants indexes associated with column j of A
-stored(A, :, j)         # just the stored values of A in column j
-index(stored(A, :, j))  # just the row-indexes of the stored values in column j
-index(A, :, ?)          # row-index iterator for an arbitrary (unknown) column of A
-index(A, Val{2})        # similar to index(A, ?, :, ?...)
-index(A, 2)             # sometimes-noninferrable variant of the above (some types won't need complicated inference, though)
-
-couple(iter1, iter2)    # iterates over iter1, iter2 containers, keeping them in sync
-# Do we want/need this? I suspect not (default would be `any`)
-couple(any, stored(iter1), stored(iter2))  # visits i if either iter1[i] or iter2[i] has a value
-couple(all, stored(iter1), stored(iter2))  # visits i if both iter1[i] and iter2[i] have values
