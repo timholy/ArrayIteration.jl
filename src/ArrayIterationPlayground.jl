@@ -1,7 +1,7 @@
 module ArrayIterationPlayground
 
 using Base: ViewIndex
-import Base: getindex, setindex!, start, next, done, eachindex
+import Base: getindex, setindex!, start, next, done, length, eachindex
 
 export inds, index, stored, each
 
@@ -9,13 +9,6 @@ export inds, index, stored, each
 
 inds(A::AbstractArray, d) = 1:size(A, d)
 inds{T,N}(A::AbstractArray{T,N}) = ntuple(d->inds(A,d), Val{N})
-
-immutable ValueIterator{I}
-    iter::I
-end
-start(iter::ValueIterator) = start(iter.iter)
-done(iter::ValueIterator, s) = done(iter.iter, s)
-next(iter::ValueIterator, s) = ((item, s) = next(iter.iter, s); (value(iter.iter, item), s))
 
 eachindex(x...) = each(index(x...))
 
@@ -41,7 +34,37 @@ stored(A::AbstractArray) = stored(A, allindexes(A))
 stored(A::AbstractArray, I::ViewIndex...) = stored(A, I)
 stored{T,N}(A::AbstractArray{T,N}, indexes::NTuple{N,ViewIndex}) = ArrayIndexingWrapper{typeof(A),typeof(indexes),false,true}(A, indexes)
 
-each(A::AbstractArray, indexes...) = ValueIterator(each(index(A, indexes)))
+"""
+`each(obj)`
+`each(obj, indexes...)`
+
+`each` instantiates the iterator associated with `obj`. In conjunction
+with `index` and `stored`, you may choose to iterate over either
+indexes or values, and o ver all elements or just the stored elements.
+"""
+each(A::AbstractArray) = each(A, allindexes(A))
+each(A::AbstractArray, indexes::ViewIndex...) = each(A, indexes)
+each{T,N}(A::AbstractArray{T,N}, indexes::NTuple{N,ViewIndex}) = each(ArrayIndexingWrapper{typeof(A),typeof(indexes),false,false}(A, indexes))
+
+# Internal type for storing instantiated index iterators but returning
+# array values
+immutable ValueIterator{A<:AbstractArray,I}
+    data::A
+    iter::I
+end
+
+each{A,I,stored}(W::ArrayIndexingWrapper{A,I,false,stored}) = (itr = each(index(W)); ValueIterator{A,typeof(itr)}(W.data, itr))
+each{A,I}(W::ArrayIndexingWrapper{A,I,true}) = CartesianRange(ranges(W))
+
+start(vi::ValueIterator) = start(vi.iter)
+done(vi::ValueIterator, s) = done(vi.iter, s)
+next(vi::ValueIterator, s) = ((idx, s) = next(vi.iter, s); (vi.data[idx], s))
+
+ranges(W) = ranges((), W.data, 1, W.indexes...)
+ranges(out, A, d) = out
+@inline ranges(out, A, d, i, I...) = ranges((out..., i), A, d+1, I...)
+@inline ranges(out, A, d, i::Colon, I...) = ranges((out..., inds(A, d)), A, d+1, I...)
+
 
 immutable SyncedIterator{I,F<:Tuple{Vararg{Function}}}
     iter::I
