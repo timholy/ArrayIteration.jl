@@ -101,6 +101,6 @@ next{S<:SubSparseMatrixCSC}(iter::ColIteratorCSC{true,S}, s) = (@inbounds row = 
 
 # nextstored{S<:SparseMatrixCSC}(iter::ColIteratorCSC{S}, s, index::Integer) =
 
-each{A<:SparseMatrixCSC,I}(w::ArrayIndexingWrapper{A,I,true,false}) = ColIteratorCSC{false}(w.data, w.indexes...)
-each{A<:SparseMatrixCSC,I}(w::ArrayIndexingWrapper{A,I,true,true})  = ColIteratorCSC{true}(w.data, w.indexes...)
+each{A<:SparseMatrixCSC,N,isstored}(w::ArrayIndexingWrapper{A,NTuple{N,Colon},true,isstored}) = ColIteratorCSC{isstored}(w.data, w.indexes...)  # ambig.
+each{A<:SparseMatrixCSC,I,isstored}(w::ArrayIndexingWrapper{A,I,true,isstored}) = ColIteratorCSC{isstored}(w.data, w.indexes...)
 each{A<:SparseMatrixCSC,I,isstored}(w::ArrayIndexingWrapper{A,I,false,isstored}) = ValueIterator(w.data, ColIteratorCSC{isstored}(w.data, w.indexes...))
