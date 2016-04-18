@@ -85,8 +85,10 @@ immutable ValueIterator{A<:AbstractArray,I}
     iter::I
 end
 
-each{A,I,stored}(W::ArrayIndexingWrapper{A,I,false,stored}) = (itr = each(index(W)); ValueIterator{A,typeof(itr)}(W.data, itr))
-each{A,I}(W::ArrayIndexingWrapper{A,I,true}) = CartesianRange(ranges(W))
+# Fallback definitions for each
+each{A,I,isstored}(W::ArrayIndexingWrapper{A,I,false,isstored}) = (itr = each(index(W)); ValueIterator{A,typeof(itr)}(W.data, itr))
+each{A,N,isstored}(W::ArrayIndexingWrapper{A,NTuple{N,Colon},true,isstored}) = eachindex(W.data)
+each{A,I,isstored}(W::ArrayIndexingWrapper{A,I,true,isstored}) = CartesianRange(ranges(W))
 
 start(vi::ValueIterator) = start(vi.iter)
 done(vi::ValueIterator, s) = done(vi.iter, s)
