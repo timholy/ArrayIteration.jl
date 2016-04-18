@@ -15,16 +15,16 @@ immutable ColIndexCSC
     cscindex::Int  # for stored value, the index into rowval & nzval
 end
 
-@inline getindex(A::SparseMatrixCSC, i::ColIndexCSC, j::Integer) = (@inbounds ret = i.stored ? A.nzval[i.cscindex] : zero(eltype(A)); ret)
-@inline getindex(A::SubSparseMatrixCSC, i::ColIndexCSC, j::Integer) = A.parent[i, j]
+@inline getindex(A::SparseMatrixCSC, i::ColIndexCSC) = (@inbounds ret = i.stored ? A.nzval[i.cscindex] : zero(eltype(A)); ret)
+@inline getindex(A::SubSparseMatrixCSC, i::ColIndexCSC) = A.parent[i]
 # @inline function getindex(a::AbstractVector, i::ColIndexCSC)
 #     @boundscheck 1 <= i.rowval <= length(a)
 #     @inbounds ret = a[i.rowval]
 #     ret
 # end
 
-@inline setindex!(A::SparseMatrixCSC, val, i::ColIndexCSC, j::Integer) = (@inbounds A.nzval[i.cscindex] = val; val)
-@inline setindex!(A::SubSparseMatrixCSC, val, i::ColIndexCSC, j::Integer) = A.parent[i,j] = val
+@inline setindex!(A::SparseMatrixCSC, val, i::ColIndexCSC) = (@inbounds A.nzval[i.cscindex] = val; val)
+@inline setindex!(A::SubSparseMatrixCSC, val, i::ColIndexCSC) = A.parent[i] = val
 # @inline function setindex!(a::AbstractVector, val, i::ColIndexCSC)
 #     @boundscheck 1 <= i.rowval <= length(a) || throw(BoundsError(a, i.rowval))
 #     @inbounds a[i.rowval] = val
@@ -99,10 +99,8 @@ done(iter::ColIteratorCSC{true}, s) = done(iter.cscrange, s)
 next{S<:SparseMatrixCSC}(iter::ColIteratorCSC{true,S}, s) = (@inbounds row = iter.A.rowval[s]; idx = ColIndexCSC(row, true, s); (idx, s+1))
 next{S<:SubSparseMatrixCSC}(iter::ColIteratorCSC{true,S}, s) = (@inbounds row = iter.A.parent.rowval[s]; idx = ColIndexCSC(row, true, s); (idx, s+1))
 
-value(iter::ColIteratorCSC, i) = iter.A[i, iter.col]
-
 # nextstored{S<:SparseMatrixCSC}(iter::ColIteratorCSC{S}, s, index::Integer) =
 
 each{A<:SparseMatrixCSC,I}(w::ArrayIndexingWrapper{A,I,true,false}) = ColIteratorCSC{false}(w.data, w.indexes...)
 each{A<:SparseMatrixCSC,I}(w::ArrayIndexingWrapper{A,I,true,true})  = ColIteratorCSC{true}(w.data, w.indexes...)
-each{A<:SparseMatrixCSC,I}(w::ArrayIndexingWrapper{A,I,false}) = ValueIterator(ColIteratorCSC{true}(w.data, w.indexes...))
+each{A<:SparseMatrixCSC,I,isstored}(w::ArrayIndexingWrapper{A,I,false,isstored}) = ValueIterator(w.data, ColIteratorCSC{isstored}(w.data, w.indexes...))
