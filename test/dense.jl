@@ -51,7 +51,7 @@ for j in inds(A, 2)
     end
 end
 
-A = copy(reshape(1:4, 2, 2))
+A = Int[1 3; 2 4]
 B = Array{Int}(2, 2)
 C = PermutedDimsArray(Array{Int}(2, 2), [2,1])
 
@@ -62,7 +62,9 @@ function badcopy!(dest, src)
     dest
 end
 
+fill!(B, -1)
 @test badcopy!(B, A) == A
+fill!(C, -1)
 badcopy!(C, A)
 @test C[2,1] != A[2,1]   # oops!
 @test C[2,1] == A[1,2]
@@ -74,9 +76,12 @@ function goodcopy!(dest, src)
     dest
 end
 
+fill!(B, -1)
 @test goodcopy!(B, A) == A
-@test B[2,1] == A[2,1]
-@test B[1,2] == A[1,2]
+fill!(C, -1)
+goodcopy!(C, A)
+@test C[2,1] == A[2,1]
+@test C[1,2] == A[1,2]
 
 D = ATs.OA(Array{Int}(2,2), (-1,2))
 @test_throws DimensionMismatch goodcopy!(D, A)
@@ -90,3 +95,53 @@ D = ATs.OA(Array{Int}(2,2), (-2,2))
 @test_throws DimensionMismatch goodcopy!(D, E)
 D = ATs.OA(Array{Int}(2,2), (-1,1))
 @test_throws DimensionMismatch goodcopy!(D, E)
+
+function goodcopy2!(dest, src)
+    for (Idest, Isrc) in sync(index(dest), index(src))
+        dest[Idest] = src[Isrc]
+    end
+    dest
+end
+
+fill!(B, -1)
+@test goodcopy2!(B, A) == A
+fill!(C, -1)
+goodcopy2!(C, A)
+@test C[2,1] == A[2,1]
+@test C[1,2] == A[1,2]
+
+# function goodcopy3!(dest, src)
+#     for (I, s) in sync(index(dest), stored(src))
+#         dest[I] = s
+#     end
+#     dest
+# end
+
+# fill!(B, -1)
+# @test goodcopy3!(B, A) == A
+# fill!(C, -1)
+# goodcopy3!(C, A)
+# @test C[2,1] == A[2,1]
+# @test C[1,2] == A[1,2]
+
+# 3-argument form
+function mysum!(dest, A, B)
+    for (Idest, a, b) in sync(index(dest), A, B)
+        dest[Idest] = a + b
+    end
+    dest
+end
+
+C = PermutedDimsArray([10 30; 20 40], [2,1])
+D = fill(-1, (2,2))
+@test mysum!(D, A, C) == Int[11 23; 32 44]
+D = fill(-1, (2,2))
+@test mysum!(D, C, A) == Int[11 23; 32 44]
+Cc = goodcopy!(similar(A), C)
+@test isa(Cc, Array)
+D = fill(-1, (2,2))
+@test mysum!(D, Cc, A) == Int[11 23; 32 44]
+goodcopy!(D, Cc)
+mysum!(C, D, A)
+@test C[1,2] == 23
+@test C[2,1] == 32

@@ -85,12 +85,18 @@ done(itr::FirstToLastIterator, i) = done(i[1], i[2])
 
 function sync(A::AllElements, B::AllElements)
     check_sameinds(A, B)
-    _sync(storageorder(A), storageorder(B), A, B)
+    _sync(samestorageorder(A, B), A, B)
 end
 
-_sync(::FirstToLast, ::FirstToLast, A, B) = zip(each(A), each(B))
-_sync{p}(::OtherOrder{p}, ::OtherOrder{p}, A, B) = zip(each(A), each(B))
-_sync(::StorageOrder, ::StorageOrder, A, B) = zip(columnmajoriterator(A), columnmajoriterator(B))
+function sync(A::AllElements, B::AllElements...)
+    check_sameinds(A, B...)
+    _sync(samestorageorder(A, B...), A, B...)
+end
+
+_sync(::Type{Val{true}}, A, B) = zip(each(A), each(B))
+_sync(::Type{Val{false}}, A, B) = zip(columnmajoriterator(A), columnmajoriterator(B))
+_sync(::Type{Val{true}}, As...) = zip(map(each, As)...)
+_sync(::Type{Val{false}}, As...) = zip(map(columnmajoriterator, As)...)
 
 sync(A::StoredElements, B::StoredElements) = sync_stored(A, B)
 sync(A, B::StoredElements) = sync_stored(A, B)
@@ -148,3 +154,11 @@ columnmajoriterator(::LinearFast, A) = A
 columnmajoriterator(::LinearSlow, A) = FirstToLastIterator(A, CartesianRange(size(A)))
 
 columnmajoriterator(W::ArrayIndexingWrapper) = CartesianRange(ranges(W))
+
+samestorageorder(A, B) = _sso(storageorder(A), storageorder(B))
+samestorageorder(A, B, C...) = samestorageorder(_sso(storageorder(A), storageorder(B)), B, C...)
+samestorageorder(::Type{Val{true}}, A, B...) = samestorageorder(A, B...)
+samestorageorder(::Type{Val{false}}, A, B...) = Val{false}
+_sso(::FirstToLast, ::FirstToLast) = Val{true}
+_sso{p}(::OtherOrder{p}, ::OtherOrder{p}) = Val{true}
+_sso(::StorageOrder, ::StorageOrder) = Val{false}
