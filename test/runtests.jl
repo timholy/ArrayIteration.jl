@@ -4,14 +4,14 @@ using Base.PermutedDimsArrays: PermutedDimsArray
 
 const AIP = ArrayIterationPlayground
 
-include("offsetarrays.jl")  # just for testing
+include("array_types.jl")  # just for testing
 
 A = zeros(2,3)
 @test inds(A, 1) == 1:2
 @test inds(A, 2) == 1:3
 @test inds(A, 3) == 1:1
 @test inds(A) == (1:2, 1:3)
-B = OAs.OA(Array{Int}(2,2), (-1,2))
+B = ATs.OA(Array{Int}(2,2), (-1,2))
 @test inds(B) == (0:1, 3:4)
 
 io = IOBuffer()

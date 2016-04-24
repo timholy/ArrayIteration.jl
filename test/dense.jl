@@ -55,26 +55,38 @@ A = copy(reshape(1:4, 2, 2))
 B = Array{Int}(2, 2)
 C = PermutedDimsArray(Array{Int}(2, 2), [2,1])
 
-function mycopy!(dest, src)
+function badcopy!(dest, src)
+    for (I, s) in zip(eachindex(dest), src)
+        dest[I] = s
+    end
+    dest
+end
+
+@test badcopy!(B, A) == A
+badcopy!(C, A)
+@test C[2,1] != A[2,1]   # oops!
+@test C[2,1] == A[1,2]
+
+function goodcopy!(dest, src)
     for (I, s) in sync(index(dest), src)
         dest[I] = s
     end
     dest
 end
 
-@test mycopy!(B, A) == A
-@test mycopy!(C, A) == A
-@test C.parent == A'
+@test goodcopy!(B, A) == A
+@test B[2,1] == A[2,1]
+@test B[1,2] == A[1,2]
 
-D = OAs.OA(Array{Int}(2,2), (-1,2))
-@test_throws DimensionMismatch mycopy!(D, A)
-E = OAs.OA(A, (-1,2))
-mycopy!(D, E)
+D = ATs.OA(Array{Int}(2,2), (-1,2))
+@test_throws DimensionMismatch goodcopy!(D, A)
+E = ATs.OA(A, (-1,2))
+goodcopy!(D, E)
 @test D[0,3] == 1
 @test D[1,3] == 2
 @test D[0,4] == 3
 @test D[1,4] == 4
-D = OAs.OA(Array{Int}(2,2), (-2,2))
-@test_throws DimensionMismatch mycopy!(D, E)
-D = OAs.OA(Array{Int}(2,2), (-1,1))
-@test_throws DimensionMismatch mycopy!(D, E)
+D = ATs.OA(Array{Int}(2,2), (-2,2))
+@test_throws DimensionMismatch goodcopy!(D, E)
+D = ATs.OA(Array{Int}(2,2), (-1,1))
+@test_throws DimensionMismatch goodcopy!(D, E)
