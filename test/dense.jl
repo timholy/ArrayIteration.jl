@@ -54,6 +54,7 @@ end
 A = Int[1 3; 2 4]
 B = Array{Int}(2, 2)
 C = PermutedDimsArray(Array{Int}(2, 2), [2,1])
+R = reshape(sub(Array{Int}(3,2,3), 1:2, 1:1, 1:2), (2, 2))
 
 function badcopy!(dest, src)
     for (I, s) in zip(eachindex(dest), src)
@@ -82,6 +83,8 @@ fill!(C, -1)
 goodcopy!(C, A)
 @test C[2,1] == A[2,1]
 @test C[1,2] == A[1,2]
+fill!(R, -1)
+@test goodcopy!(R, A) == A
 
 D = ATs.OA(Array{Int}(2,2), (-1,2))
 @test_throws DimensionMismatch goodcopy!(D, A)
@@ -109,7 +112,14 @@ fill!(C, -1)
 goodcopy2!(C, A)
 @test C[2,1] == A[2,1]
 @test C[1,2] == A[1,2]
+fill!(R, -1)
+@test goodcopy!(R, A) == A
 
+iter = sync(index(A), index(R))
+(IA, IR) = first(iter)
+@test isa(IR, Base.ReshapedIndex)
+
+# TODO: uncomment when sync+stored is implemented
 # function goodcopy3!(dest, src)
 #     for (I, s) in sync(index(dest), stored(src))
 #         dest[I] = s

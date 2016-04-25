@@ -2,6 +2,7 @@
 
 module ATs  # OffsetArrays
 
+using Base: ReshapedArray, ReshapedArrayIterator
 using Base.PermutedDimsArrays: PermutedDimsArray
 import ArrayIterationPlayground: inds
 
@@ -42,5 +43,8 @@ Base.done(iter::PDAIterator, s) = done(iter.iter, s)
 
 Base.getindex(A::PermutedDimsArray, i::PDAIndex) = parent(A)[i.i]
 Base.setindex!(A::PermutedDimsArray, val, i::PDAIndex) = parent(A)[i.i] = val
+
+# Turn on eachindex for ReshapedArrays
+Base.eachindex(A::ReshapedArray) = ReshapedArrayIterator(A)
 
 end
