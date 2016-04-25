@@ -50,3 +50,140 @@ for j in inds(A, 2)
         @test v == A[k+=1]
     end
 end
+
+A = Int[1 3; 2 4]
+B = Array{Int}(2, 2)
+C = PermutedDimsArray(Array{Int}(2, 2), [2,1])
+R = reshape(sub(Array{Int}(3,2,3), 1:2, 1:1, 1:2), (2, 2))
+
+function badcopy!(dest, src)
+    for (I, s) in zip(eachindex(dest), src)
+        dest[I] = s
+    end
+    dest
+end
+
+fill!(B, -1)
+@test badcopy!(B, A) == A
+fill!(C, -1)
+badcopy!(C, A)
+@test C[2,1] != A[2,1]   # oops!
+@test C[2,1] == A[1,2]
+
+function goodcopy!(dest, src)
+    for (I, s) in sync(index(dest), src)
+        dest[I] = s
+    end
+    dest
+end
+
+fill!(B, -1)
+@test goodcopy!(B, A) == A
+fill!(C, -1)
+goodcopy!(C, A)
+@test C[2,1] == A[2,1]
+@test C[1,2] == A[1,2]
+fill!(R, -1)
+@test goodcopy!(R, A) == A
+
+D = ATs.OA(Array{Int}(2,2), (-1,2))
+@test_throws DimensionMismatch goodcopy!(D, A)
+E = ATs.OA(A, (-1,2))
+goodcopy!(D, E)
+@test D[0,3] == 1
+@test D[1,3] == 2
+@test D[0,4] == 3
+@test D[1,4] == 4
+D = ATs.OA(Array{Int}(2,2), (-2,2))
+@test_throws DimensionMismatch goodcopy!(D, E)
+D = ATs.OA(Array{Int}(2,2), (-1,1))
+@test_throws DimensionMismatch goodcopy!(D, E)
+
+function goodcopy2!(dest, src)
+    for (Idest, Isrc) in sync(index(dest), index(src))
+        dest[Idest] = src[Isrc]
+    end
+    dest
+end
+
+fill!(B, -1)
+@test goodcopy2!(B, A) == A
+fill!(C, -1)
+goodcopy2!(C, A)
+@test C[2,1] == A[2,1]
+@test C[1,2] == A[1,2]
+fill!(R, -1)
+@test goodcopy!(R, A) == A
+
+iter = sync(index(A), index(R))
+(IA, IR) = first(iter)
+@test isa(IR, Base.ReshapedIndex)
+
+# TODO: uncomment when sync+stored is implemented
+# function goodcopy3!(dest, src)
+#     for (I, s) in sync(index(dest), stored(src))
+#         dest[I] = s
+#     end
+#     dest
+# end
+
+# fill!(B, -1)
+# @test goodcopy3!(B, A) == A
+# fill!(C, -1)
+# goodcopy3!(C, A)
+# @test C[2,1] == A[2,1]
+# @test C[1,2] == A[1,2]
+
+# 1-argument case
+function mysum1a(A)
+    s = 0.0
+    for (a,) in sync(A)
+        s += a
+    end
+    s
+end
+
+function mysum1b(A)
+    s = 0.0
+    for (I,) in sync(index(A))
+        s += A[I]
+    end
+    s
+end
+
+@test_approx_eq mysum1a(A) sum(A)
+@test_approx_eq mysum1b(A) sum(A)
+
+# 3-argument form
+function mysum!(dest, A, B)
+    for (Idest, a, b) in sync(index(dest), A, B)
+        dest[Idest] = a + b
+    end
+    dest
+end
+
+C = PermutedDimsArray([10 30; 20 40], [2,1])
+D = fill(-1, (2,2))
+@test mysum!(D, A, C) == Int[11 23; 32 44]
+D = fill(-1, (2,2))
+@test mysum!(D, C, A) == Int[11 23; 32 44]
+Cc = goodcopy!(similar(A), C)
+@test isa(Cc, Array)
+D = fill(-1, (2,2))
+@test mysum!(D, Cc, A) == Int[11 23; 32 44]
+goodcopy!(D, Cc)
+mysum!(C, D, A)
+@test C[1,2] == 23
+@test C[2,1] == 32
+
+# sync with dimension iterators
+fill!(B, -1)
+for (I, a) in sync(index(B, :, 2), value(A, :, 1))
+    B[I] = a
+end
+@test B == [-1 A[1,1]; -1 A[2,1]]
+fill!(B, -1)
+for (IB, IA) in sync(index(B, :, 1), index(A, :, 2))
+    B[IB] = A[IA]
+end
+@test B == [A[1,2] -1; A[2,2] -1]
