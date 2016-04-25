@@ -137,8 +137,10 @@ ranges(out, A, d) = out
 @inline ranges(out, A, d, i, I...) = ranges((out..., i), A, d+1, I...)
 @inline ranges(out, A, d, i::Colon, I...) = ranges((out..., inds(A, d)), A, d+1, I...)
 
+check_sameinds(::Type{Bool}, A::ArrayOrWrapper) = true
 check_sameinds(::Type{Bool}, A::ArrayOrWrapper, B::ArrayOrWrapper) = extent_inds(A) == extent_inds(B)
 check_sameinds(::Type{Bool}, A, B, C...) = check_sameinds(Bool, A, B) && check_sameinds(Bool, B, C...)
+check_sameinds(A) = check_sameinds(Bool, A)
 check_sameinds(A, B) = check_sameinds(Bool, A, B) || throw(DimensionMismatch("extent inds $(extent_inds(A)) and $(extent_inds(B)) do not match"))
 check_sameinds(A, B, C...) = check_sameinds(A, B) && check_sameinds(B, C...)
 
@@ -155,6 +157,7 @@ columnmajoriterator(::LinearSlow, A) = FirstToLastIterator(A, CartesianRange(siz
 
 columnmajoriterator(W::ArrayIndexingWrapper) = CartesianRange(ranges(W))
 
+samestorageorder(A) = Val{true}
 samestorageorder(A, B) = _sso(storageorder(A), storageorder(B))
 samestorageorder(A, B, C...) = samestorageorder(_sso(storageorder(A), storageorder(B)), B, C...)
 samestorageorder(::Type{Val{true}}, A, B...) = samestorageorder(A, B...)

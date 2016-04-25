@@ -124,6 +124,26 @@ goodcopy2!(C, A)
 # @test C[2,1] == A[2,1]
 # @test C[1,2] == A[1,2]
 
+# 1-argument case
+function mysum1a(A)
+    s = 0.0
+    for (a,) in sync(A)
+        s += a
+    end
+    s
+end
+
+function mysum1b(A)
+    s = 0.0
+    for (I,) in sync(index(A))
+        s += A[I]
+    end
+    s
+end
+
+@test_approx_eq mysum1a(A) sum(A)
+@test_approx_eq mysum1b(A) sum(A)
+
 # 3-argument form
 function mysum!(dest, A, B)
     for (Idest, a, b) in sync(index(dest), A, B)
