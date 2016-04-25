@@ -4,7 +4,7 @@ import Base: getindex, setindex!, start, next, done, length, eachindex, show, pa
 using Base: ReshapedArray, linearindexing, LinearFast, LinearSlow
 using Base.PermutedDimsArrays: PermutedDimsArray
 
-export inds, index, stored, each, sync
+export inds, index, value, stored, each, sync
 
 include("types.jl")
 include("core.jl")

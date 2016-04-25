@@ -23,9 +23,22 @@ create an iterator from a hint, call `each` on the resulting object.
 In contrast to `eachindex` iteration over a subarray of `A`, the
 indexes are for `A` itself.
 
-See also: `stored`, `each`.
+See also: `value`, `stored`, `each`.
 """
 index{A,I,isindex,isstored}(w::ArrayIndexingWrapper{A,I,isindex,isstored}) = ArrayIndexingWrapper{A,I,true,isstored}(w.data, w.indexes)
+
+"""
+`value(A)`
+`value(A, indexes...)`
+
+`value` creates an "iteration hint" that records the region of `A`
+that you wish to iterate over. The iterator will return the values,
+rather than the indexes, of `A`. "iteration hints" are not iterables; to
+create an iterator from a hint, call `each` on the resulting object.
+
+See also: `index`, `stored`, `each`.
+"""
+value{A,I,isindex,isstored}(w::ArrayIndexingWrapper{A,I,isindex,isstored}) = ArrayIndexingWrapper{A,I,true,isstored}(w.data, w.indexes)
 
 """
 `stored(A)`
@@ -36,7 +49,7 @@ that you wish to iterate over. The iterator will return just the
 stored values of `A`. "iteration hints" are not iterables; to create
 an iterator from a hint, call `each` on the resulting object.
 
-See also: `index`, `each`.
+See also: `index`, `value`, `each`.
 """
 stored{A,I,isindex,isstored}(w::ArrayIndexingWrapper{A,I,isindex,isstored}) = ArrayIndexingWrapper{A,I,isindex,true}(w.data, w.indexes)
 
@@ -45,6 +58,10 @@ allindexes{T,N}(A::AbstractArray{T,N}) = ntuple(d->Colon(),Val{N})
 index(A::AbstractArray) = index(A, allindexes(A))
 index(A::AbstractArray, I::IterIndex...) = index(A, I)
 index{T,N}(A::AbstractArray{T,N}, indexes::NTuple{N,IterIndex}) = ArrayIndexingWrapper{typeof(A),typeof(indexes),true,false}(A, indexes)
+
+value(A::AbstractArray) = value(A, allindexes(A))
+value(A::AbstractArray, I::IterIndex...) = value(A, I)
+value{T,N}(A::AbstractArray{T,N}, indexes::NTuple{N,IterIndex}) = ArrayIndexingWrapper{typeof(A),typeof(indexes),false,false}(A, indexes)
 
 stored(A::AbstractArray) = stored(A, allindexes(A))
 stored(A::AbstractArray, I::IterIndex...) = stored(A, I)

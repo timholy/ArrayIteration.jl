@@ -165,3 +165,15 @@ goodcopy!(D, Cc)
 mysum!(C, D, A)
 @test C[1,2] == 23
 @test C[2,1] == 32
+
+# sync with dimension iterators
+fill!(B, -1)
+for (I, a) in sync(index(B, :, 2), value(A, :, 1))
+    B[I] = a
+end
+@test B == [-1 A[1,1]; -1 A[2,1]]
+fill!(B, -1)
+for (IB, IA) in sync(index(B, :, 1), index(A, :, 2))
+    B[IB] = A[IA]
+end
+@test B == [A[1,2] -1; A[2,2] -1]
