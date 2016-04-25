@@ -101,13 +101,13 @@ end
 done(itr::FirstToLastIterator, i) = done(i[1], i[2])
 
 function sync(A::AllElements, B::AllElements)
-    check_sameinds(A, B)
-    _sync(samestorageorder(A, B), A, B)
+    checksame_inds(A, B)
+    _sync(checksame_storageorder(A, B), A, B)
 end
 
 function sync(A::AllElements, B::AllElements...)
-    check_sameinds(A, B...)
-    _sync(samestorageorder(A, B...), A, B...)
+    checksame_inds(A, B...)
+    _sync(checksame_storageorder(A, B...), A, B...)
 end
 
 _sync(::Type{Val{true}}, A, B) = zip(each(A), each(B))
@@ -120,7 +120,7 @@ sync(A, B::StoredElements) = sync_stored(A, B)
 sync(A::StoredElements, B) = sync_stored(A, B)
 
 #function sync_stored(A, B)
-#    check_sameinds(A, B)
+#    checksame_inds(A, B)
 #end
 
 ### Utility methods
@@ -154,12 +154,12 @@ ranges(out, A, d) = out
 @inline ranges(out, A, d, i, I...) = ranges((out..., i), A, d+1, I...)
 @inline ranges(out, A, d, i::Colon, I...) = ranges((out..., inds(A, d)), A, d+1, I...)
 
-check_sameinds(::Type{Bool}, A::ArrayOrWrapper) = true
-check_sameinds(::Type{Bool}, A::ArrayOrWrapper, B::ArrayOrWrapper) = extent_inds(A) == extent_inds(B)
-check_sameinds(::Type{Bool}, A, B, C...) = check_sameinds(Bool, A, B) && check_sameinds(Bool, B, C...)
-check_sameinds(A) = check_sameinds(Bool, A)
-check_sameinds(A, B) = check_sameinds(Bool, A, B) || throw(DimensionMismatch("extent inds $(extent_inds(A)) and $(extent_inds(B)) do not match"))
-check_sameinds(A, B, C...) = check_sameinds(A, B) && check_sameinds(B, C...)
+checksame_inds(::Type{Bool}, A::ArrayOrWrapper) = true
+checksame_inds(::Type{Bool}, A::ArrayOrWrapper, B::ArrayOrWrapper) = extent_inds(A) == extent_inds(B)
+checksame_inds(::Type{Bool}, A, B, C...) = checksame_inds(Bool, A, B) && checksame_inds(Bool, B, C...)
+checksame_inds(A) = checksame_inds(Bool, A)
+checksame_inds(A, B) = checksame_inds(Bool, A, B) || throw(DimensionMismatch("extent inds $(extent_inds(A)) and $(extent_inds(B)) do not match"))
+checksame_inds(A, B, C...) = checksame_inds(A, B) && checksame_inds(B, C...)
 
 # extent_inds drops sliced dimensions
 extent_inds(A::AbstractArray) = inds(A)
@@ -174,11 +174,11 @@ columnmajoriterator(::LinearSlow, A) = FirstToLastIterator(A, CartesianRange(siz
 
 columnmajoriterator(W::ArrayIndexingWrapper) = CartesianRange(ranges(W))
 
-samestorageorder(A) = Val{true}
-samestorageorder(A, B) = _sso(storageorder(A), storageorder(B))
-samestorageorder(A, B, C...) = samestorageorder(_sso(storageorder(A), storageorder(B)), B, C...)
-samestorageorder(::Type{Val{true}}, A, B...) = samestorageorder(A, B...)
-samestorageorder(::Type{Val{false}}, A, B...) = Val{false}
+checksame_storageorder(A) = Val{true}
+checksame_storageorder(A, B) = _sso(storageorder(A), storageorder(B))
+checksame_storageorder(A, B, C...) = checksame_storageorder(_sso(storageorder(A), storageorder(B)), B, C...)
+checksame_storageorder(::Type{Val{true}}, A, B...) = checksame_storageorder(A, B...)
+checksame_storageorder(::Type{Val{false}}, A, B...) = Val{false}
 _sso(::FirstToLast, ::FirstToLast) = Val{true}
 _sso{p}(::OtherOrder{p}, ::OtherOrder{p}) = Val{true}
 _sso(::StorageOrder, ::StorageOrder) = Val{false}

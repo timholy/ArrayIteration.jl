@@ -1,6 +1,6 @@
 A = rand(3,4)
-AIP.check_sameinds(A, A)
-@test_throws DimensionMismatch AIP.check_sameinds(A, A')
+AIP.checksame_inds(A, A)
+@test_throws DimensionMismatch AIP.checksame_inds(A, A')
 @test isa(AIP.storageorder(A), AIP.FirstToLast)
 R = reshape(A, (2,3,2))
 @test isa(AIP.storageorder(R), AIP.FirstToLast)
