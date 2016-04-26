@@ -37,3 +37,15 @@ immutable FirstToLastIterator{N,AA}
     parent::AA
     itr::CartesianRange{N}
 end
+
+# Contiguous ranges
+abstract Contiguity
+immutable Contiguous <: Contiguity end
+immutable NonContiguous <: Contiguity end
+immutable MaybeContiguous <: Contiguity end  # intermediate type used in assessing contiguity
+
+# Contiguous cartesian ranges. Sometimes needed for LinearSlow arrays.
+immutable ContigCartIterator{N}
+    arrayrange::CartesianRange{N}
+    columnrange::CartesianRange{N}
+end

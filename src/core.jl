@@ -9,6 +9,10 @@ function show(io::IO, W::ArrayIndexingWrapper)
     print(io, "iteration hint over ", hint_string(W), " of a ", summary(W.data), " over the region ", W.indexes)
 end
 
+function show(io::IO, iter::ContigCartIterator)
+    print(io, "Cartesian iterator with:\n  domain ", iter.arrayrange, "\n  start  ", iter.columnrange.start, "\n  stop   ", iter.columnrange.stop)
+end
+
 parent(W::ArrayIndexingWrapper) = W.data
 
 """
@@ -83,7 +87,10 @@ each{T,N}(A::AbstractArray{T,N}, indexes::NTuple{N,IterIndex}) = each(ArrayIndex
 # Fallback definitions for each
 each{A,I,isstored}(W::ArrayIndexingWrapper{A,I,false,isstored}) = (itr = each(index(W)); ValueIterator{A,typeof(itr)}(W.data, itr))
 each{A,N,isstored}(W::ArrayIndexingWrapper{A,NTuple{N,Colon},true,isstored}) = eachindex(W.data)
-each{A,I,isstored}(W::ArrayIndexingWrapper{A,I,true,isstored}) = CartesianRange(ranges(W))
+each{A,I,isstored}(W::ArrayIndexingWrapper{A,I,true,isstored}) = _each(contiguous_index(W.indexes), W)
+
+_each(::Contiguous, W) = contiguous_iterator(W)
+_each(::Any, W) = CartesianRange(ranges(W))
 
 start(vi::ValueIterator) = start(vi.iter)
 done(vi::ValueIterator, s) = done(vi.iter, s)
@@ -182,3 +189,28 @@ checksame_storageorder(::Type{Val{false}}, A, B...) = Val{false}
 _sso(::FirstToLast, ::FirstToLast) = Val{true}
 _sso{p}(::OtherOrder{p}, ::OtherOrder{p}) = Val{true}
 _sso(::StorageOrder, ::StorageOrder) = Val{false}
+
+# indexes is contiguous if it's one of:
+#    Colon...
+#    Colon..., Union{UnitRange,Int}, Int...
+contiguous_index(I) = contiguous_index(Contiguous(), I...)
+@inline contiguous_index(c::Contiguous, ::Colon, I...) = contiguous_index(c, I...)
+@inline contiguous_index(::Contiguous, ::Any, I...) = contiguous_index(MaybeContiguous(), I...)
+@inline contiguous_index(c::MaybeContiguous, ::Int, I...) = contiguous_index(c, I...)
+@inline contiguous_index(::MaybeContiguous, ::Any, I...) = NonContiguous()
+@inline contiguous_index(::Contiguity) = Contiguous()  # won't get here for NonContiguous
+
+contiguous_iterator(W) = _contiguous_iterator(W, linearindexing(parent(W)))
+function _contiguous_iterator(W, ::LinearFast)
+    f, l = firstlast(W)
+    f:l
+end
+_contiguous_iterator(W, ::LinearSlow) = CartesianRange(ranges(W))
+
+function firstlast(W)
+    A = parent(W)
+    psz = size(A)
+    f = sub2ind(psz, map((i,j)->first(i[j]), inds(A), W.indexes)...)
+    l = sub2ind(psz, map((i,j)->last(i[j]),  inds(A), W.indexes)...)
+    f, l
+end
