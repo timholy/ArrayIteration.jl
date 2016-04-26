@@ -193,7 +193,7 @@ _sso(::StorageOrder, ::StorageOrder) = Val{false}
 # indexes is contiguous if it's one of:
 #    Colon...
 #    Colon..., Union{UnitRange,Int}, Int...
-contiguous_index(I) = contiguous_index(Contiguous(), I...)
+@inline contiguous_index(I) = contiguous_index(Contiguous(), I...)
 @inline contiguous_index(c::Contiguous, ::Colon, I...) = contiguous_index(c, I...)
 @inline contiguous_index(::Contiguous, ::Any, I...) = contiguous_index(MaybeContiguous(), I...)
 @inline contiguous_index(c::MaybeContiguous, ::Int, I...) = contiguous_index(c, I...)
@@ -209,8 +209,16 @@ _contiguous_iterator(W, ::LinearSlow) = CartesianRange(ranges(W))
 
 function firstlast(W)
     A = parent(W)
-    psz = size(A)
-    f = sub2ind(psz, map((i,j)->first(i[j]), inds(A), W.indexes)...)
-    l = sub2ind(psz, map((i,j)->last(i[j]),  inds(A), W.indexes)...)
+    f = firstlast(first, A, W.indexes)
+    l = firstlast(last, A, W.indexes)
     f, l
+end
+
+# This effectively implements 2-argument map, but without allocating
+# intermediate tuples
+@inline firstlast(f, A, indexes) = sub2ind(size(A), _firstlast((), f, A, indexes...)...)
+@inline _firstlast(out, f, A) = out
+@inline function _firstlast(out, f, A, i1, indexes...)
+    d = length(out)+1
+    _firstlast((out..., f(inds(A, d)[i1])), f, A, indexes...)
 end

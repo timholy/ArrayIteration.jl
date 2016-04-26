@@ -1,12 +1,12 @@
 # optimized methods for ReshapedArrays
 
 # column iteration
-start(iter::ContigCartIterator) = iter.columnrange.start
-function next(iter::ContigCartIterator, state)
+@inline start(iter::ContigCartIterator) = iter.columnrange.start
+@inline function next(iter::ContigCartIterator, state)
     item, newstate = next(iter.arrayrange, state)
     ReshapedIndex(item), newstate
 end
-done(iter::ContigCartIterator, state) = isless(iter.columnrange.stop, state)
+@inline done(iter::ContigCartIterator, state) = isless(iter.columnrange.stop, state)
 
 function _contiguous_iterator{AA<:ReshapedArray}(W::ArrayIndexingWrapper{AA}, ::LinearSlow)
     fi, li = firstlast(W)
