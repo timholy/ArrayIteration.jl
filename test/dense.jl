@@ -235,10 +235,22 @@ function sum_cols_fast!(S, A)
     S
 end
 
-A = rand(1000,1,999)
-B = sub(A, 1:size(A,1)-1, 1, 1:size(A,3)-1)
-R = reshape(B, (size(B,1),size(B,3)))
+const can_inline = Base.JLOptions().can_inline == 1
+dim1 = can_inline ? 10^6 : 10
+A = rand(dim1,2,5)
+B = sub(A, 1:size(A,1)-1, :, :)
+R = reshape(B, (size(B,1),prod(size(B)[2:end])))
 @test isa(each(index(R, :, 2)), CCI)
 S1 = zeros(1,size(R,2))
 S2 = similar(S1)
 @test sum_cols_fast!(S1, R) == sum_cols_slow!(S2, R)
+
+if can_inline
+    nfailures = 0
+    for i = 1:5
+        ts = @elapsed sum_cols_slow!(S2, R)
+        tf = @elapsed sum_cols_fast!(S2, R)
+        nfailures += tf > ts
+    end
+    @test nfailures <= 1
+end
