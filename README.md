@@ -22,7 +22,7 @@ There are only a handful of new functions.
 
 ## inds
 
-`inds(A, d)` returns a `UnitRange{Int}` specifying the indexes for dimension `d`.  The default value is `1:size(A, d)`, but you can override this for specific array types.  See the `OffsetArrays` [type definition](test/array_types.jl) for an example.
+`inds(A, d)` returns a `UnitRange{Int}` specifying the indexes for dimension `d`.  The default value is `1:size(A, d)`, but you can override this for specific array types.  See the `OA` (for `OffsetArray`) [type definition](test/array_types.jl) for an example.
 
 ## sync
 
@@ -69,8 +69,16 @@ for a in each(stored(A, :, j))
     s += a
 end
 ```
-since only the stored (non-zero) elements of `A` contribute to the sum.
-For an array with high sparsity, this can result in huge efficiency gains; thanks to multiple dispatch, this should come without cost for handling dense arrays.
+since only the stored (non-zero) elements of `A` contribute to the sum.  You can combine `stored` with other hints, for example
+
+```jl
+for I in each(index(stored(A, :, j)))
+    s += A[I]
+end
+```
+if you needed to have the corresponding index.
+
+For an array with high sparsity, `stored` can result in huge efficiency gains; thanks to multiple dispatch, this should come without cost for handling dense arrays.
 
 It's worth noting that, in contrast with `SubArray`s, the indexes returned from `index` correspond to the "original" array rather than "shifted" indexes for the `SubArray`.  This can help when synchronizing operations across different arrays.
 
