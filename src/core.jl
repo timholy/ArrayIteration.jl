@@ -9,6 +9,10 @@ function show(io::IO, W::ArrayIndexingWrapper)
     print(io, "iteration hint over ", hint_string(W), " of a ", summary(W.data), " over the region ", W.indexes)
 end
 
+function show(io::IO, iter::ContigCartIterator)
+    print(io, "Cartesian iterator with:\n  domain ", iter.arrayrange, "\n  start  ", iter.columnrange.start, "\n  stop   ", iter.columnrange.stop)
+end
+
 parent(W::ArrayIndexingWrapper) = W.data
 
 """
@@ -83,7 +87,10 @@ each{T,N}(A::AbstractArray{T,N}, indexes::NTuple{N,IterIndex}) = each(ArrayIndex
 # Fallback definitions for each
 each{A,I,isstored}(W::ArrayIndexingWrapper{A,I,false,isstored}) = (itr = each(index(W)); ValueIterator{A,typeof(itr)}(W.data, itr))
 each{A,N,isstored}(W::ArrayIndexingWrapper{A,NTuple{N,Colon},true,isstored}) = eachindex(W.data)
-each{A,I,isstored}(W::ArrayIndexingWrapper{A,I,true,isstored}) = CartesianRange(ranges(W))
+each{A,I,isstored}(W::ArrayIndexingWrapper{A,I,true,isstored}) = _each(contiguous_index(W.indexes), W)
+
+_each(::Contiguous, W) = contiguous_iterator(W)
+_each(::Any, W) = CartesianRange(ranges(W))
 
 start(vi::ValueIterator) = start(vi.iter)
 done(vi::ValueIterator, s) = done(vi.iter, s)
@@ -101,13 +108,13 @@ end
 done(itr::FirstToLastIterator, i) = done(i[1], i[2])
 
 function sync(A::AllElements, B::AllElements)
-    check_sameinds(A, B)
-    _sync(samestorageorder(A, B), A, B)
+    checksame_inds(A, B)
+    _sync(checksame_storageorder(A, B), A, B)
 end
 
 function sync(A::AllElements, B::AllElements...)
-    check_sameinds(A, B...)
-    _sync(samestorageorder(A, B...), A, B...)
+    checksame_inds(A, B...)
+    _sync(checksame_storageorder(A, B...), A, B...)
 end
 
 _sync(::Type{Val{true}}, A, B) = zip(each(A), each(B))
@@ -120,7 +127,7 @@ sync(A, B::StoredElements) = sync_stored(A, B)
 sync(A::StoredElements, B) = sync_stored(A, B)
 
 #function sync_stored(A, B)
-#    check_sameinds(A, B)
+#    checksame_inds(A, B)
 #end
 
 ### Utility methods
@@ -154,12 +161,12 @@ ranges(out, A, d) = out
 @inline ranges(out, A, d, i, I...) = ranges((out..., i), A, d+1, I...)
 @inline ranges(out, A, d, i::Colon, I...) = ranges((out..., inds(A, d)), A, d+1, I...)
 
-check_sameinds(::Type{Bool}, A::ArrayOrWrapper) = true
-check_sameinds(::Type{Bool}, A::ArrayOrWrapper, B::ArrayOrWrapper) = extent_inds(A) == extent_inds(B)
-check_sameinds(::Type{Bool}, A, B, C...) = check_sameinds(Bool, A, B) && check_sameinds(Bool, B, C...)
-check_sameinds(A) = check_sameinds(Bool, A)
-check_sameinds(A, B) = check_sameinds(Bool, A, B) || throw(DimensionMismatch("extent inds $(extent_inds(A)) and $(extent_inds(B)) do not match"))
-check_sameinds(A, B, C...) = check_sameinds(A, B) && check_sameinds(B, C...)
+checksame_inds(::Type{Bool}, A::ArrayOrWrapper) = true
+checksame_inds(::Type{Bool}, A::ArrayOrWrapper, B::ArrayOrWrapper) = extent_inds(A) == extent_inds(B)
+checksame_inds(::Type{Bool}, A, B, C...) = checksame_inds(Bool, A, B) && checksame_inds(Bool, B, C...)
+checksame_inds(A) = checksame_inds(Bool, A)
+checksame_inds(A, B) = checksame_inds(Bool, A, B) || throw(DimensionMismatch("extent inds $(extent_inds(A)) and $(extent_inds(B)) do not match"))
+checksame_inds(A, B, C...) = checksame_inds(A, B) && checksame_inds(B, C...)
 
 # extent_inds drops sliced dimensions
 extent_inds(A::AbstractArray) = inds(A)
@@ -174,11 +181,44 @@ columnmajoriterator(::LinearSlow, A) = FirstToLastIterator(A, CartesianRange(siz
 
 columnmajoriterator(W::ArrayIndexingWrapper) = CartesianRange(ranges(W))
 
-samestorageorder(A) = Val{true}
-samestorageorder(A, B) = _sso(storageorder(A), storageorder(B))
-samestorageorder(A, B, C...) = samestorageorder(_sso(storageorder(A), storageorder(B)), B, C...)
-samestorageorder(::Type{Val{true}}, A, B...) = samestorageorder(A, B...)
-samestorageorder(::Type{Val{false}}, A, B...) = Val{false}
+checksame_storageorder(A) = Val{true}
+checksame_storageorder(A, B) = _sso(storageorder(A), storageorder(B))
+checksame_storageorder(A, B, C...) = checksame_storageorder(_sso(storageorder(A), storageorder(B)), B, C...)
+checksame_storageorder(::Type{Val{true}}, A, B...) = checksame_storageorder(A, B...)
+checksame_storageorder(::Type{Val{false}}, A, B...) = Val{false}
 _sso(::FirstToLast, ::FirstToLast) = Val{true}
 _sso{p}(::OtherOrder{p}, ::OtherOrder{p}) = Val{true}
 _sso(::StorageOrder, ::StorageOrder) = Val{false}
+
+# indexes is contiguous if it's one of:
+#    Colon...
+#    Colon..., Union{UnitRange,Int}, Int...
+@inline contiguous_index(I) = contiguous_index(Contiguous(), I...)
+@inline contiguous_index(c::Contiguous, ::Colon, I...) = contiguous_index(c, I...)
+@inline contiguous_index(::Contiguous, ::Any, I...) = contiguous_index(MaybeContiguous(), I...)
+@inline contiguous_index(c::MaybeContiguous, ::Int, I...) = contiguous_index(c, I...)
+@inline contiguous_index(::MaybeContiguous, ::Any, I...) = NonContiguous()
+@inline contiguous_index(::Contiguity) = Contiguous()  # won't get here for NonContiguous
+
+contiguous_iterator(W) = _contiguous_iterator(W, linearindexing(parent(W)))
+function _contiguous_iterator(W, ::LinearFast)
+    f, l = firstlast(W)
+    f:l
+end
+_contiguous_iterator(W, ::LinearSlow) = CartesianRange(ranges(W))
+
+function firstlast(W)
+    A = parent(W)
+    f = firstlast(first, A, W.indexes)
+    l = firstlast(last, A, W.indexes)
+    f, l
+end
+
+# This effectively implements 2-argument map, but without allocating
+# intermediate tuples
+@inline firstlast(f, A, indexes) = sub2ind(size(A), _firstlast((), f, A, indexes...)...)
+@inline _firstlast(out, f, A) = out
+@inline function _firstlast(out, f, A, i1, indexes...)
+    d = length(out)+1
+    _firstlast((out..., f(inds(A, d)[i1])), f, A, indexes...)
+end

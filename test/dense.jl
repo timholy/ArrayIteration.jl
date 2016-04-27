@@ -4,8 +4,10 @@ B = sub(A, 1:2, 1:3)
 
 @test each(index(A)) == eachindex(A) == 1:length(A)
 @test each(index(B)) == CartesianRange((1:2, 1:3))
-@test each(index(A, :, 1:2)) == CartesianRange((1:2, 1:2))
-@test each(index(A, :, 2:3)) == CartesianRange((1:2, 2:3))
+@test each(index(A, :, 1:2)) == 1:4
+@test each(index(B, :, 1:2)) == CartesianRange((1:2, 1:2))
+@test each(index(A, :, 2:3)) == 3:6
+@test each(index(B, :, 2:3)) == CartesianRange((1:2, 2:3))
 @test each(index(A, 1, :)) == CartesianRange((1, 1:3))
 
 k = 0
@@ -187,3 +189,68 @@ for (IB, IA) in sync(index(B, :, 1), index(A, :, 2))
     B[IB] = A[IA]
 end
 @test B == [A[1,2] -1; A[2,2] -1]
+
+## optimized ReshapedArray iterators
+A = reshape(1:12, 4, 3)    # LinearFast
+@test each(index(A, :, 2)) == 5:8
+@test each(index(A, 2:3, 3)) == 10:11
+A = sub(copy(reshape(1:15, 5, 3)), 1:4, :)  # LinearSlow
+a = reshape(A, 12)
+@test each(index(a, 1:4)) == CCI(CartesianRange(size(A)),
+                                 CartesianRange(CartesianIndex(1,1),CartesianIndex(4,1)))
+k = 0
+for I in each(index(a, 1:4))
+    @test a[I] == a[k+=1]
+end
+@test each(index(a, 3:9)) == CCI(CartesianRange(size(A)),
+                                 CartesianRange(CartesianIndex(3,1),CartesianIndex(1,3)))
+k = 2
+for I in each(index(a, 3:9))
+    @test a[I] == a[k+=1]
+end
+
+function sum_cols_slow!(S, A)  # slow for ReshapedArrays
+    fill!(S, 0)
+    @assert inds(S,2) == inds(A,2)
+    for j in inds(A,2)
+	tmp = S[1,j]
+	@inbounds for i in inds(A, 1)
+	    tmp += A[i,j]
+	end
+	S[1,j] = tmp
+    end
+    S
+end
+
+function sum_cols_fast!(S, A)
+    fill!(S, 0)
+    @assert inds(S,2) == inds(A,2)
+    for j in inds(A,2)
+	tmp = S[1,j]
+	@inbounds for I in each(index(A, :, j))
+	    tmp += A[I]
+	end
+	S[1,j] = tmp
+    end
+    S
+end
+
+const can_inline = Base.JLOptions().can_inline == 1
+dim1 = can_inline ? 10^6 : 10
+A = rand(dim1,2,5)
+B = sub(A, 1:size(A,1)-1, :, :)
+R = reshape(B, (size(B,1),prod(size(B)[2:end])))
+@test isa(each(index(R, :, 2)), CCI)
+S1 = zeros(1,size(R,2))
+S2 = similar(S1)
+@test sum_cols_fast!(S1, R) == sum_cols_slow!(S2, R)
+
+if can_inline
+    nfailures = 0
+    for i = 1:5
+        ts = @elapsed sum_cols_slow!(S2, R)
+        tf = @elapsed sum_cols_fast!(S2, R)
+        nfailures += tf > ts
+    end
+    @test nfailures <= 1
+end
