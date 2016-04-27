@@ -1,8 +1,8 @@
-using ArrayIterationPlayground
+using ArrayIteration
 using Base.Test
 using Base.PermutedDimsArrays: PermutedDimsArray
 
-const AIP = ArrayIterationPlayground
+const AIP = ArrayIteration
 const CCI = AIP.ContigCartIterator
 
 include("array_types.jl")  # just for testing

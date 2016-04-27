@@ -4,7 +4,7 @@ module ATs  # OffsetArrays
 
 using Base: ReshapedArray, ReshapedArrayIterator
 using Base.PermutedDimsArrays: PermutedDimsArray
-import ArrayIterationPlayground: inds
+import ArrayIteration: inds
 
 immutable OA{T,N,AA<:AbstractArray} <: AbstractArray{T,N}
     parent::AA

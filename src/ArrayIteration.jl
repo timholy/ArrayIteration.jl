@@ -1,4 +1,4 @@
-module ArrayIterationPlayground
+module ArrayIteration
 
 import Base: getindex, setindex!, start, next, done, length, eachindex, show, parent, isless
 using Base: ReshapedArray, ReshapedIndex, linearindexing, LinearFast, LinearSlow, LinearIndexing
