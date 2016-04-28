@@ -2,8 +2,8 @@ using ArrayIteration
 using Base.Test
 using Base.PermutedDimsArrays: PermutedDimsArray
 
-const AIP = ArrayIteration
-const CCI = AIP.ContigCartIterator
+const AI = ArrayIteration
+const CCI = AI.ContigCartIterator
 
 include("array_types.jl")  # just for testing
 

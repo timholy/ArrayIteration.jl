@@ -49,3 +49,5 @@ immutable ContigCartIterator{N}
     arrayrange::CartesianRange{N}
     columnrange::CartesianRange{N}
 end
+
+# Note: sparse types are in sparse.jl
