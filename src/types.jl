@@ -16,9 +16,16 @@ immutable ValueIterator{A<:AbstractArray,I}
     iter::I
 end
 
-immutable SyncedIterator{I,F<:Tuple{Vararg{Function}}}
+immutable SyncedIterator{I,O<:Tuple,F<:Tuple{Vararg{Function}}}
     iter::I
+    items::O
     itemfuns::F
+end
+
+# declare that an array/iterhint should not control which index
+# positions are visited, but only follow the lead of other objects
+immutable Follower{T}
+    value::T
 end
 
 typealias ArrayOrWrapper Union{AbstractArray,ArrayIndexingWrapper}

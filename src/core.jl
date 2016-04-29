@@ -14,6 +14,10 @@ function show(io::IO, iter::ContigCartIterator)
 end
 
 parent(W::ArrayIndexingWrapper) = W.data
+parent(F::Follower) = F.value
+
+stripwrapper(A::AbstractArray) = A
+stripwrapper(A::ArrayIndexingWrapper) = parent(A)
 
 """
 `index(A)`
@@ -97,7 +101,10 @@ done(vi::ValueIterator, s) = done(vi.iter, s)
 next(vi::ValueIterator, s) = ((idx, s) = next(vi.iter, s); (vi.data[idx], s))
 
 start(iter::SyncedIterator) = start(iter.iter)
-next(iter::SyncedIterator, state) = mapf(iter.itemfuns, state), next(iter.iter, state)
+function next(iter::SyncedIterator, state)
+    item, newstate = next(iter.iter, state)
+    mapf(iter.itemfuns, iter.items, item), newstate
+end
 done(iter::SyncedIterator, state) = done(iter.iter, state)
 
 start(itr::FirstToLastIterator) = (itr.itr, start(itr.itr))
@@ -106,6 +113,8 @@ function next(itr::FirstToLastIterator, i)
     itr.parent[idx], (i[1], s)
 end
 done(itr::FirstToLastIterator, i) = done(i[1], i[2])
+
+# SyncedIterator(iter, funcs) = SyncedIterator{typeof(iter), Base.typesof(funcs)}(iter, funcs)
 
 function sync(A::AllElements, B::AllElements)
     checksame_inds(A, B)
@@ -122,24 +131,21 @@ _sync(::Type{Val{false}}, A, B) = zip(columnmajoriterator(A), columnmajoriterato
 _sync(::Type{Val{true}}, As...) = zip(map(each, As)...)
 _sync(::Type{Val{false}}, As...) = zip(map(columnmajoriterator, As)...)
 
-sync(A::StoredElements, B::StoredElements) = sync_stored(A, B)
-sync(A, B::StoredElements) = sync_stored(A, B)
-sync(A::StoredElements, B) = sync_stored(A, B)
-
-#function sync_stored(A, B)
-#    checksame_inds(A, B)
-#end
+# For stored, see sync_stored.jl
 
 ### Utility methods
 
 """
-`mapf(fs, x)` is similar to `map`, except instead of mapping one
-function over many objects, it maps many functions over one
-object. `fs` should be a tuple-of-functions.
+`mapf(fs, objs, x)` is similar to `map(f, a, b)`, except instead of mapping one
+function over many objects, it maps many function/object pairs over one
+`x`. `fs` should be a tuple-of-functions, and `objs` a tuple-of-containers.
 """
-@inline mapf(fs::Tuple, x) = _mapf((), x, fs...)
-_mapf(out, x) = out
-@inline _mapf(out, x, f, fs...) = _mapf((out..., f(x)), x, fs...)
+mapf{N}(fs::NTuple{N}, objs::NTuple{N}, x) = _mapf((), fs, objs, x)
+_mapf(out, ::Tuple{}, ::Tuple{}, x) = out
+@inline function _mapf(out, fs, objs, x)
+    f, obj = fs[1], objs[1]
+    ret = _mapf((out..., f(obj, x)), Base.tail(fs), Base.tail(objs), x)
+end
 
 storageorder(::Array) = FirstToLast()
 storageorder{T,N,AA,perm}(::PermutedDimsArray{T,N,AA,perm}) = OtherOrder{perm}()
@@ -175,6 +181,13 @@ _extent_inds(out, A, d) = out
 @inline _extent_inds(out, A, d, ::Int, indexes...) = _extent_inds(out, A, d+1, indexes...)
 @inline _extent_inds(out, A, d, i, indexes...) = _extent_inds((out..., inds(A, d)), A, d+1, indexes...)
 
+# extent_dims indicates which dimensions have extended size
+extent_dims{T,N}(A::AbstractArray{T,N}) = ntuple(identity,Val{N})
+extent_dims(W::ArrayIndexingWrapper) = _extent_dims((), 1, W.indexes...)
+_extent_dims(out, d::Integer) = out
+@inline _extent_dims(out, d, i1::Union{UnitRange{Int},Colon}, indexes...) = _extent_dims((out..., d), d+1, indexes...)
+@inline _extent_dims(out, d, i1, indexes...) = _extent_dims(out, d+1, indexes...)
+
 columnmajoriterator(A::AbstractArray) = columnmajoriterator(linearindexing(A), A)
 columnmajoriterator(::LinearFast, A) = A
 columnmajoriterator(::LinearSlow, A) = FirstToLastIterator(A, CartesianRange(size(A)))
@@ -207,6 +220,7 @@ function _contiguous_iterator(W, ::LinearFast)
 end
 _contiguous_iterator(W, ::LinearSlow) = CartesianRange(ranges(W))
 
+# Return the "corners" of an iteration range
 function firstlast(W)
     A = parent(W)
     f = firstlast(first, A, W.indexes)

@@ -28,3 +28,39 @@ for j = inds(A, 2)
         @test v == Af[k+=1]
     end
 end
+
+# Sparse matrix-vector multiplication
+function matvecmul_ind!(b::AbstractVector, A::AbstractMatrix, x::AbstractVector)
+    fill!(b, 0)
+    inds(A, 2) == inds(x, 1) || throw(DimensionMismatch("inds(A, 2) = $(inds(A, 2)) does not agree with inds(x, 1) = $(inds(x, 1))"))
+    for j in inds(A, 2)
+        xj = x[j]
+        for (ib, iA) in sync(Follower(index(b)), index(stored(A, :, j)))
+            b[ib] += A[iA]*xj
+        end
+    end
+    b
+end
+function matvecmul_val!(b::AbstractVector, A::AbstractMatrix, x::AbstractVector)
+    fill!(b, 0)
+    inds(A, 2) == inds(x, 1) || throw(DimensionMismatch("inds(A, 2) = $(inds(A, 2)) does not agree with inds(x, 1) = $(inds(x, 1))"))
+    for j in inds(A, 2)
+        xj = x[j]
+        for (ib, a) in sync(Follower(index(b)), stored(A, :, j))
+            b[ib] += a*xj
+        end
+    end
+    b
+end
+
+x = [1,-5]
+btrue = A*x
+b = similar(btrue)
+matvecmul_ind!(b, A, x)
+@test_approx_eq b btrue
+matvecmul_val!(b, A, x)
+@test_approx_eq b btrue
+@test_throws DimensionMismatch matvecmul_ind!(b, A, [1])
+@test_throws DimensionMismatch matvecmul_ind!([0.1,0.2], A, x)
+@test_throws DimensionMismatch matvecmul_val!(b, A, [1])
+@test_throws DimensionMismatch matvecmul_val!([0.1,0.2], A, x)

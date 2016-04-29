@@ -1,5 +1,7 @@
 ### Sparse-array iterators
 
+typealias SubSparseArray{I,T,N,P<:AbstractSparseArray} SubArray{T,N,P,I,false}
+
 ## SparseMatrixCSC
 
 typealias SubSparseMatrixCSC{I,T,N,P<:SparseMatrixCSC} SubArray{T,N,P,I,false}
@@ -13,6 +15,11 @@ immutable IndexCSC
     row::Int; col::Int  # where you are currently (might not be a stored value)
     stored::Bool        # true if this location corresponds to a stored value
     cscindex::Int       # for stored value, the index into rowval & nzval
+end
+
+function getindex(I::IndexCSC, d)
+    @boundscheck d==1 || d==2 || Base.throw_boundserror(I, d)
+    ifelse(d == 1, I.row, I.col)
 end
 
 @inline getindex(A::SparseMatrixCSC, i::IndexCSC) = (@inbounds ret = i.stored ? A.nzval[i.cscindex] : zero(eltype(A)); ret)
