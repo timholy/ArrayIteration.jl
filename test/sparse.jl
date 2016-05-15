@@ -1,11 +1,21 @@
-A = sparse([1,4,3],[1,1,2],[0.2,0.4,0.6])
+A = sparse([2,4,3],[2,2,4],[0.2,0.4,0.6])
 Af = full(A)
+
+k = 0
+for I in eachindex(stored(A))
+    @test A[I] == A.nzval[k+=1]
+end
 
 k = 0
 for j = inds(A, 2)
     for I in eachindex(stored(A, :, j))
         @test A[I] == A.nzval[k+=1]
     end
+end
+
+k = 0
+for v in each(stored(A))
+    @test v == A.nzval[k+=1]
 end
 
 k = 0
@@ -16,10 +26,20 @@ for j = inds(A, 2)
 end
 
 k = 0
+for I in each(index(A))
+    @test A[I] == Af[k+=1]
+end
+
+k = 0
 for j = inds(A, 2)
     for I in each(index(A, :, j))
         @test A[I] == Af[k+=1]
     end
+end
+
+k = 0
+for v in each(A)
+    @test v == Af[k+=1]
 end
 
 k = 0
@@ -53,7 +73,7 @@ function matvecmul_val!(b::AbstractVector, A::AbstractMatrix, x::AbstractVector)
     b
 end
 
-x = [1,-5]
+x = [1,-5,7,-13]
 btrue = A*x
 b = similar(btrue)
 matvecmul_ind!(b, A, x)
