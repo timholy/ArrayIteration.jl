@@ -13,13 +13,13 @@ end
 function vecdot(x::AbstractVector, y::AbstractVector)
     length(x) == length(y) || throw(DimensionMismatch("x and y are of different lengths!"))
     citer = couple(stored(x), stored(y))
-    cstate = start(citer)
-    done(state) && return dot(zero(eltype(x)), zero(eltype(y)))
+    cstate = iterate(citer)
+    cstate === nothing && return dot(zero(eltype(x)), zero(eltype(y)))
     # Otherwise we avoid calling zero
-    (vx, vy), cstate = next(citer, cstate)
+    (vx, vy), cstate = cstate
     s = dot(vx, vy)
-    while !done(citer, cstate)
-        (vx, vy), cstate = next(citer, cstate)
+    while (cstate = iterate(citer, cstate)) !== nothing
+        (vx, vy), cstate = cstate
         s += dot(vx, vy)
     end
     s

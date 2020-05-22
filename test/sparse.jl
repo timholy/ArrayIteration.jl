@@ -1,6 +1,7 @@
 A = sparse([2,4,3],[2,2,4],[0.2,0.4,0.6])
-Af = full(A)
+Af = Matrix(A)
 
+let k
 k = 0
 for I in eachindex(stored(A))
     @test A[I] == A.nzval[k+=1]
@@ -48,6 +49,7 @@ for j = inds(A, 2)
         @test v == Af[k+=1]
     end
 end
+end
 
 # Sparse matrix-vector multiplication
 function matvecmul_ind!(b::AbstractVector, A::AbstractMatrix, x::AbstractVector)
@@ -77,9 +79,9 @@ x = [1,-5,7,-13]
 btrue = A*x
 b = similar(btrue)
 matvecmul_ind!(b, A, x)
-@test_approx_eq b btrue
+@test b ≈ btrue
 matvecmul_val!(b, A, x)
-@test_approx_eq b btrue
+@test b ≈ btrue
 @test_throws DimensionMismatch matvecmul_ind!(b, A, [1])
 @test_throws DimensionMismatch matvecmul_ind!([0.1,0.2], A, x)
 @test_throws DimensionMismatch matvecmul_val!(b, A, [1])

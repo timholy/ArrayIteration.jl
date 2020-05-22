@@ -1,9 +1,12 @@
 module ArrayIteration
 
-import Base: getindex, setindex!, start, next, done, length, eachindex, show, parent, isless
-using Base: ReshapedArray, ReshapedIndex, linearindexing, LinearFast, LinearSlow, LinearIndexing
+import Base: getindex, setindex!, iterate, length, eachindex, show, parent, isless
+using Base: ReshapedArray, ReshapedIndex, IndexStyle, IndexLinear, IndexCartesian
+using Base: Slice, OneTo
 using Base.PermutedDimsArrays: PermutedDimsArray
 using Base.Order
+
+using SparseArrays
 
 export Follower, inds, index, value, stored, each, sync
 
