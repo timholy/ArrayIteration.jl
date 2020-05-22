@@ -86,21 +86,21 @@ end
 # Cholesky decomposition
 # This works for arrays that have numeric indexes, but would fail for
 # an array indexed by A[:cat, :dog]
-function chol!{T}(A::AbstractMatrix{T}, ::Type{Val{:L}})
+function chol!(A::AbstractMatrix{T}, ::Type{Val{:L}}) where T
     ind = inds(A, 1)
     inds(A, 2) == ind || throw(DimensionMismatch("blah blah"))
     @inbounds begin
         for k in ind
             Akkm = A[k,k]
-            for (Arow, Acol) in zip(sub(A, k, first:k-1), sub(A, first:k-1, k))
+            for (Arow, Acol) in zip(view(A, k, first:k-1), view(A, first:k-1, k))
                 Akkm -= Arow*Acol'
             end
             Akk = chol!(Akkm, Val{:L})
             A[k,k] = Akk
             AkkInv = inv(Akk)
-            Ak = sub(A, :, k)
+            Ak = view(A, :, k)
             for j in ind[first:findfirst(ind, k)-1]  # would be nice to have a notation for this
-                Aj = sub(A, :, j)
+                Aj = view(A, :, j)
                 c = Aj[k]'*AkkInv'
                 for (i, aij) in zip(index(Ak, k+1:end), slice(Aj, k+1:end))
                     if j == first(ind)
