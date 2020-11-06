@@ -26,6 +26,8 @@ There are only a handful of new functions.
 
 `inds(A, d)` returns a `UnitRange{Int}` specifying the indexes for dimension `d`.  The default value is `1:size(A, d)`, but you can override this for specific array types.  See the `OA` (for `OffsetArray`) [type definition](test/array_types.jl) for an example.
 
+UPDATE: this is what became `axes` in modern Julia.
+
 ## sync
 
 `for (a, b) in sync(A, B)` is similar to `zip`, but adds the extra constraint that `a` and `b` are corresponding elements in `A` and `B` whereas `zip` employs independent iterators.
