@@ -2,9 +2,6 @@
 
 UPDATE: some of the things described below have already moved to Julia itself. The still-to-do item is to come up with efficient "synchronizable" iterators, with the main benefit being to sparse matrix algebra. The key problem to be solved is that Julia has `N` different sparse matrix types (`SparseMatrixSCS`, `Diagonal`, `BiDiagonal`, `Tridiagonal`, `SymTriDiagonal`, wrappers like `Adjoint` and `Transpose` which compose with those types, plus types in packages). Implementing efficient algorithms for `A*B` might therefore require `O(N^2)` methods, one for each possible pair of types. The goal of this package is to make it possible to simply define `N` iterators (one per matrix type) and then use them to define a reasonably-efficient fallback method.
 
-If you're interested in this package, the `teh/stored2` branch is actually the state-of-the-art.
-
-
 [![Build Status](https://travis-ci.org/timholy/ArrayIteration.jl.svg?branch=master)](https://travis-ci.org/timholy/ArrayIteration.jl)
 
 This repository contains a candidate next-generation interface for handling arrays in the Julia programming language.
